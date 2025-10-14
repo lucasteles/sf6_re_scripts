@@ -65,7 +65,8 @@ function imgui.multi_color(color_text, white_text)
 end
 
 local get_hitbox_range = function ( player, actParam, list )
-	local facingRight = bitand(player.BitValue, 128) == 128
+	--local facingRight = bitand(player.BitValue, 128) == 128
+	local facingRight = player.rl_dir
 	local maxHitboxEdgeX = nil
 	if actParam ~= nil then
 		local col = actParam.Collision
@@ -73,13 +74,14 @@ local get_hitbox_range = function ( player, actParam, list )
 			if rect ~= nil then
 				local posX = rect.OffsetX.v / 6553600.0
 				local posY = rect.OffsetY.v / 6553600.0
-				local sclX = rect.SizeX.v / 6553600.0 * 2
-				local sclY = rect.SizeY.v / 6553600.0 * 2
+				local sclX = rect.SizeX.v / 6553600.0
+				local sclY = rect.SizeY.v / 6553600.0
 				if rect:get_field("HitPos") ~= nil then
 					local hitbox_X
 					if rect.TypeFlag > 0 or (rect.TypeFlag == 0 and rect.PoseBit > 0) then
                         if facingRight then
                             hitbox_X = posX + sclX / 2
+							--log.debug(hitbox_X)
                         else
                             hitbox_X = posX - sclX / 2
                         end
@@ -87,10 +89,14 @@ local get_hitbox_range = function ( player, actParam, list )
 							maxHitboxEdgeX = hitbox_X
 						end
 						if maxHitboxEdgeX ~= nil then
-							if facingRight and hitbox_X > maxHitboxEdgeX then
-								maxHitboxEdgeX = hitbox_X
-							elseif hitbox_X < maxHitboxEdgeX then
-								maxHitboxEdgeX = hitbox_X
+							if facingRight then
+								if hitbox_X > maxHitboxEdgeX then
+									maxHitboxEdgeX = hitbox_X
+								end
+							else
+								if hitbox_X < maxHitboxEdgeX then
+									maxHitboxEdgeX = hitbox_X
+								end
 							end
 						end
 					end
@@ -102,7 +108,7 @@ local get_hitbox_range = function ( player, actParam, list )
 			-- Replace start_pos because it can fail to track the actual starting location of an action (e.g., DJ 2MK)
 			-- local playerStartPosX = player.start_pos.x.v / 6553600.0
 			local playerStartPosX = player.act_root.x.v / 6553600.0
-            list.absolute_range = abs(maxHitboxEdgeX - playerStartPosX)
+			list.absolute_range = abs(maxHitboxEdgeX - playerStartPosX)
             list.relative_range = abs(maxHitboxEdgeX - playerPosX)
 		end
 	end

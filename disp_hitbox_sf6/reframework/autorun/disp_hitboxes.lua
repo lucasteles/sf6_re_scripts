@@ -188,9 +188,10 @@ local draw_p1_boxes = function ( work, actParam )
 						draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFF00FFFF)
 						draw.filled_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0x4000FFFF)
 					end
-				-- If the rectangle has a HitNo field, the box falls under hurt boxes
+				-- If the rectangle has a HitNo field, the box falls under hurt boxes or throw hurt box
 				elseif rect:get_field("HitNo") ~= nil then
-					if display_p1_hurtboxes then
+					-- TypeFlag > 0 indicates a hurt box
+					if rect.TypeFlag > 0 and display_p1_hurtboxes then
 						-- Armor (Type: 1) & Parry (Type: 2) Boxes
 						if rect.Type == 2 or rect.Type == 1 then
 							draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFFFF0080)
@@ -247,15 +248,15 @@ local draw_p1_boxes = function ( work, actParam )
 							end
 							draw.text(fullString, finalPosX, (finalPosY + finalSclY), 0xFFFFFFFF)
 						end
+					-- otherwise is a throw hurt box
+					elseif display_p1_throwhurtboxes then
+						draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFFFF0000)
+						draw.filled_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0x4DFF0000)
 					end
 				-- UniqueBoxes have a special field called KeyData
 				elseif rect:get_field("KeyData") ~= nil and display_p1_uniqueboxes then
 					draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFFEEFF00)
 					draw.filled_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0x4DEEFF00)
-				-- Any remaining rectangles are drawn as a grab box
-				elseif rect:get_field("KeyData") == nil and display_p1_throwhurtboxes then
-					draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFFFF0000)
-					draw.filled_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0x4DFF0000)
 				end
 			end
 		end
@@ -398,9 +399,10 @@ local draw_p2_boxes = function ( work, actParam )
 						draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFF00FFFF)
 						draw.filled_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0x4000FFFF)
 					end
-				-- If the rectangle has a HitNo field, the box falls under hurt boxes
+				-- If the rectangle has a HitNo field, the box falls under hurt boxes or throw hurt box
 				elseif rect:get_field("HitNo") ~= nil then
-					if display_p2_hurtboxes then
+					-- TypeFlag > 0 indicates a hurt box
+					if rect.TypeFlag > 0 and display_p2_hurtboxes then
 						-- Armor (Type: 1) & Parry (Type: 2) Boxes
 						if rect.Type == 2 or rect.Type == 1 then
 							draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFFFF0080)
@@ -457,15 +459,15 @@ local draw_p2_boxes = function ( work, actParam )
 							end
 							draw.text(fullString, finalPosX, (finalPosY + finalSclY), 0xFFFFFFFF)
 						end
+					-- otherwise is a throw hurt box
+					elseif display_p2_throwhurtboxes then
+						draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFFFF0000)
+						draw.filled_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0x4DFF0000)
 					end
 				-- UniqueBoxes have a special field called KeyData
 				elseif rect:get_field("KeyData") ~= nil and display_p2_uniqueboxes then
 					draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFFEEFF00)
 					draw.filled_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0x4DEEFF00)
-				-- Any remaining rectangles are drawn as a grab box
-				elseif rect:get_field("KeyData") == nil and display_p2_throwhurtboxes then
-					draw.outline_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0xFFFF0000)
-					draw.filled_rect(finalPosX, finalPosY, finalSclX, finalSclY, 0x4DFF0000)
 				end
 			end
 		end
