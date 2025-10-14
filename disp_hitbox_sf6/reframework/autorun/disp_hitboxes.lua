@@ -14,7 +14,7 @@ function create_display_config(name)
         properties = true,
         position = true,
         clashbox = true,
-        hide_all = true
+        hide_all = true,
     }
 end
 
