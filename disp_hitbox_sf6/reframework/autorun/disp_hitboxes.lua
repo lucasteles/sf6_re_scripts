@@ -4,6 +4,7 @@ local gBattle
 function create_display_config(name)
     return {
         name = name,
+        hide_all = true,
         hitboxes = true,
         hurtboxes = true,
         pushboxes = true,
@@ -14,7 +15,6 @@ function create_display_config(name)
         properties = true,
         position = true,
         clashbox = true,
-        hide_all = true,
     }
 end
 
@@ -276,6 +276,7 @@ end
 
 function player_gui(display)
     if imgui.tree_node(display.name) then
+        changed, display.hide_all = imgui.checkbox("Hide Boxes", display.hide_all)
         changed, display.hitboxes = imgui.checkbox("Display Hitboxes", display.hitboxes)
         changed, display.hurtboxes = imgui.checkbox("Display Hurtboxes", display.hurtboxes)
         changed, display.pushboxes = imgui.checkbox("Display Pushboxes", display.pushboxes)
@@ -286,7 +287,6 @@ function player_gui(display)
         changed, display.uniqueboxes = imgui.checkbox("Display Unique Boxes", display.uniqueboxes)
         changed, display.properties = imgui.checkbox("Display Properties", display.properties)
         changed, display.position = imgui.checkbox("Display Position", display.position)
-        changed, display.hide_all = imgui.checkbox("Hide Boxes", display.hide_all)
         imgui.tree_pop()
     end
 end
