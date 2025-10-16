@@ -1,5 +1,6 @@
+require "utils"
+
 local changed
-local gBattle
 
 function create_display_config(name)
     return {
@@ -300,7 +301,7 @@ re.on_draw_ui(function()
 end)
 
 function draw_work()
-    local sWork = gBattle:get_field("Work"):get_data(nil)
+    local sWork = Battle:Field("Work")
     local cWork = sWork.Global_work
 
     for i, obj in pairs(cWork) do
@@ -315,7 +316,7 @@ function draw_work()
 end
 
 function draw_player()
-    local sPlayer = gBattle:get_field("Player"):get_data(nil)
+    local sPlayer = Battle:Field("Player")
     local cPlayer = sPlayer.mcPlayer
     for i, player in pairs(cPlayer) do
         local actParam = player.mpActParam
@@ -329,8 +330,7 @@ function draw_player()
 end
 
 re.on_frame(function()
-    gBattle = sdk.find_type_definition("gBattle")
-    if gBattle then
+    if Battle:Update() then
         draw_work()
         draw_player()
     end

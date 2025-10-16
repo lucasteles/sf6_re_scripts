@@ -1,3 +1,5 @@
+require "utils"
+
 local gBattle
 local changed
 
@@ -13,57 +15,6 @@ end
 
 local p1 = create_player_config(0, 1)
 local p2 = create_player_config(1, 0)
-
-function reversePairs(aTable)
-    local keys = {}
-
-    for k, v in pairs(aTable) do
-        keys[#keys + 1] = k
-    end
-    table.sort(keys, function(a, b)
-        return a > b
-    end)
-
-    local n = 0
-
-    return function()
-        n = n + 1
-        return keys[n], aTable[keys[n]]
-    end
-end
-
-function bitand(a, b)
-    local result = 0
-    local bitval = 1
-    while a > 0 and b > 0 do
-        if a % 2 == 1 and b % 2 == 1 then -- test the rightmost bits
-            result = result + bitval -- set the current bit
-        end
-        bitval = bitval * 2 -- shift left
-        a = math.floor(a / 2) -- shift right
-        b = math.floor(b / 2)
-    end
-    return result
-end
-
-function abs(num)
-    return num < 0 and num * -1 or num
-end
-
-function num(obj_v)
-    return tonumber(obj_v:call("ToString()"))
-end
-
-function read_sfix(sfix_obj)
-    if sfix_obj.w then
-        return Vector4f.new(num(sfix_obj.x), num(sfix_obj.y), num(sfix_obj.z), num(sfix_obj.w))
-    elseif sfix_obj.z then
-        return Vector3f.new(num(sfix_obj.x), num(sfix_obj.y), num(sfix_obj.z))
-    elseif sfix_obj.y then
-        return Vector2f.new(num(sfix_obj.x), num(sfix_obj.y))
-    end
-    return num(sfix_obj)
-end
 
 -- imgui.colored_and_white_text = function(color_text, white_text)
 function imgui.multi_color(color_text, white_text)
@@ -82,10 +33,10 @@ local get_hitbox_range = function(p)
         local col = actParam.Collision
         for j, rect in reversePairs(col.Infos._items) do
             if rect ~= nil then
-                local posX = rect.OffsetX.v / 6553600.0
-                local posY = rect.OffsetY.v / 6553600.0
-                local sclX = rect.SizeX.v / 6553600.0
-                local sclY = rect.SizeY.v / 6553600.0
+                local posX = fixed(rect.OffsetX.v)
+                local posY = fixed(rect.OffsetY.v)
+                local sclX = fixed(rect.SizeX.v)
+                local sclY = fixed(rect.SizeY.v)
                 if rect:get_field("HitPos") ~= nil then
                     local hitbox_X
                     if rect.TypeFlag > 0 or (rect.TypeFlag == 0 and rect.PoseBit > 0) then
@@ -114,10 +65,10 @@ local get_hitbox_range = function(p)
             end
         end
         if maxHitboxEdgeX ~= nil then
-            local playerPosX = player.pos.x.v / 6553600.0
+            local playerPosX = fixed(player.pos.x.v)
             -- Replace start_pos because it can fail to track the actual starting location of an action (e.g., DJ 2MK)
-            -- local playerStartPosX = player.start_pos.x.v / 6553600.0
-            local playerStartPosX = player.act_root.x.v / 6553600.0
+            -- local playerStartPosX = fixed(player.start_pos.x.v)
+            local playerStartPosX = fixed(player.act_root.x.v)
             p.absolute_range = abs(maxHitboxEdgeX - playerStartPosX)
             p.relative_range = abs(maxHitboxEdgeX - playerPosX)
         end
@@ -183,27 +134,15 @@ function update_player(p, cPlayer, storageData, battleTeam)
     p.buff = player.style_timer
     p.poison_timer = player.damage_cond.timer
     p.chargeInfo = chargeInfo
-    p.posX = player.pos.x.v / 6553600.0
-    p.posY = player.pos.y.v / 6553600.0
-    p.spdX = player.speed.x.v / 6553600.0
-    p.spdY = player.speed.y.v / 6553600.0
-    p.aclX = player.alpha.x.v / 6553600.0
-    p.aclY = player.alpha.y.v / 6553600.0
-    p.pushback = player.vector_zuri.speed.v / 6553600.0
-    p.self_pushback = player.vs_vec_zuri.zuri.speed.v / 6553600.0
+    p.posX = fixed(player.pos.x.v)
+    p.posY = fixed(player.pos.y.v)
+    p.spdX = fixed(player.speed.x.v)
+    p.spdY = fixed(player.speed.y.v)
+    p.aclX = fixed(player.alpha.x.v)
+    p.aclY = fixed(player.alpha.y.v)
+    p.pushback = fixed(player.vector_zuri.speed.v)
+    p.self_pushback = fixed(player.vs_vec_zuri.zuri.speed.v)
     p.vs_distance = read_sfix(player.vs_distance)
-
-    --[[ DEPRECATED (found a variable that does the same thing)
-    -- Max hitstop tracker
-    if p.max_hitstop == nil then
-        p.max_hitstop = 0
-    end
-    if p.curr_hitstop > p.max_hitstop then
-        p.max_hitstop = p.curr_hitstop
-    elseif p.curr_hitstop == 0 then
-        p.max_hitstop = 0
-    end
-    --]]
 
     -- Max blockstun tracker
     if p.max_blockstun == nil then
@@ -227,10 +166,10 @@ function draw_projectile_gui(cWork, pl_no)
                         math.floor(read_sfix(objEngine:get_ActionFrame())) .. " / " ..
                             math.floor(read_sfix(objEngine:get_MarginFrame())) .. " (" ..
                             math.floor(read_sfix(objEngine:get_ActionFrameNum())) .. ")")
-                    imgui.multi_color("Position X:", obj.pos.x.v / 6553600.0)
-                    imgui.multi_color("Position Y:", obj.pos.y.v / 6553600.0)
-                    imgui.multi_color("Speed X:", obj.speed.x.v / 6553600.0)
-                    imgui.multi_color("Speed Y:", obj.speed.y.v / 6553600.0)
+                    imgui.multi_color("Position X:", fixed(obj.pos.x.v))
+                    imgui.multi_color("Position Y:", fixed(obj.pos.y.v))
+                    imgui.multi_color("Speed X:", fixed(obj.speed.x.v))
+                    imgui.multi_color("Speed Y:", fixed(obj.speed.y.v))
                     imgui.tree_pop()
                 end
             end
