@@ -2,8 +2,10 @@
 $bundle_path = ".\bundle"
 $src = ".\src"
 $re_path = "reframework\autorun"
+$replace_text = "-- {{INJECT_UTILS}} --"
+
 $plugin_files = @("display_hitboxes.lua", "display_info.lua")
-$utils_files = @("utils.lua")
+$utils_src = [IO.File]::ReadAllText(".\src\utils.lua")
 
 function Reset-Directory($path) {
     if (Test-Path $path -PathType Leaf) { throw "Path '$path' is not a directory" }
@@ -19,7 +21,6 @@ function Join() {
 }
 
 [array] $plugin_files = $plugin_files | ForEach-Object { Join $src $_ }
-[array] $utils_files = $utils_files | ForEach-Object { Join $src $_ }
 
 Reset-Directory $bundle_path
 
@@ -30,7 +31,11 @@ foreach ($file in $plugin_files) {
     $plugin_path = Join $plugin_dir $re_path
     Reset-Directory $plugin_path
 
-    Copy-Item -Path @($utils_files + $file.FullName) -Destination $plugin_path
+    $plugin_path = Join $plugin_path $file.Name
+    Copy-Item -Path $file.FullName -Destination $plugin_path
+
+    $content = [IO.File]::ReadAllText($plugin_path).Replace($replace_text, $utils_src)
+    [IO.File]::WriteAllText($plugin_path, $content)
 
     $zip_file = Join $bundle_path "$($file.BaseName).zip"
     Compress-Archive -Force $plugin_dir/* $zip_file

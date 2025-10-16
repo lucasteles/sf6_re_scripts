@@ -1,8 +1,6 @@
-require "utils"
-
-local gBattle
-local changed
-
+-- Begin Utils
+-- {{INJECT_UTILS}} --
+-- End Utils
 function create_player_config(pl_no, opponent_no)
     return {
         display_info = false,
@@ -16,15 +14,21 @@ end
 local p1 = create_player_config(0, 1)
 local p2 = create_player_config(1, 0)
 
+local text_color = 0xFFAAFFFF
+local FacingRightFlag = 128
+local Stance = {
+    Standing = 0,
+    Crouching = 1
+}
+
 -- imgui.colored_and_white_text = function(color_text, white_text)
 function imgui.multi_color(color_text, white_text)
-    imgui.text_colored(color_text, 0xFFAAFFFF)
+    imgui.text_colored(color_text, text_color)
     imgui.same_line()
     imgui.text(white_text)
 end
 
 local get_hitbox_range = function(p)
-    -- local facingRight = bitand(player.BitValue, 128) == 128
     local player = p.cPlayer
     local actParam = player.mpActParam
     local facingRight = player.rl_dir
@@ -75,14 +79,6 @@ local get_hitbox_range = function(p)
     end
 end
 
-re.on_draw_ui(function()
-    if imgui.tree_node("Info Display") then
-        changed, p1.display_info = imgui.checkbox("Display P1 Battle Info", p1.display_info)
-        changed, p2.display_info = imgui.checkbox("Display P2 Battle Info", p2.display_info)
-        imgui.tree_pop()
-    end
-end)
-
 function update_player(p, cPlayer, storageData, battleTeam)
     local cTeam = battleTeam.mcTeam
     local chargeInfo = storageData.UserEngines[p.pl_no].m_charge_infos
@@ -91,7 +87,6 @@ function update_player(p, cPlayer, storageData, battleTeam)
 
     -- ActEngine
     -- Player ActID, Current Frame, Final Frame, IASA Frame
-
     local actParam = player.mpActParam
     if actParam ~= nil then
         local engine = actParam.ActionPart._Engine
@@ -118,7 +113,7 @@ function update_player(p, cPlayer, storageData, battleTeam)
     p.HP_cap = player.heal_new
     p.current_HP = player.vital_new
     p.HP_cooldown = player.healing_wait
-    p.dir = bitand(player.BitValue, 128) == 128
+    p.dir = flagged(player.BitValue, FacingRightFlag)
     p.curr_hitstop = player.hit_stop
     p.max_hitstop = player.hit_stop_org
     p.curr_hitstun = player.damage_time
@@ -153,6 +148,9 @@ function update_player(p, cPlayer, storageData, battleTeam)
     elseif p.curr_blockstun == 0 then
         p.max_blockstun = 0
     end
+
+
+    get_hitbox_range(p)
 end
 
 function draw_projectile_gui(cWork, pl_no)
@@ -205,18 +203,16 @@ function draw_info_gui(p)
         imgui.tree_pop()
     end
     if imgui.tree_node("Movement Info") then
-        if p.dir == true then
-            imgui.multi_color("Facing:", "Right")
+        imgui.multi_color("Facing:", p.dir == true and "Right" or "Left")
+        if p.stance == Stance.Standing then
+            stanceName = "Standing"
+        elseif p.stance == Stance.Crouching then
+            stanceName = "Crouching"
         else
-            imgui.multi_color("Facing:", "Left")
+            stanceName = "Jumping"
         end
-        if p.stance == 0 then
-            imgui.multi_color("Stance:", "Standing")
-        elseif p.stance == 1 then
-            imgui.multi_color("Stance:", "Crouching")
-        else
-            imgui.multi_color("Stance:", "Jumping")
-        end
+        imgui.multi_color("Stance:", stanceName)
+
         imgui.multi_color("VS Distance:", p.vs_distance)
         imgui.multi_color("Position X:", p.posX)
         imgui.multi_color("Position Y:", p.posY)
@@ -230,13 +226,12 @@ function draw_info_gui(p)
         imgui.tree_pop()
     end
     if imgui.tree_node("Attack Info") then
-        get_hitbox_range(p)
         imgui.multi_color("Absolute Range:", p.absolute_range)
         imgui.multi_color("Relative Range:", p.relative_range)
         imgui.multi_color("Juggle Counter:", p2.juggle)
         if imgui.tree_node("Latest Attack Info") then
             if p.hitDT == nil then
-                imgui.text_colored("No hit yet", 0xFFAAFFFF)
+                imgui.text_colored("No hit yet", text_color)
             else
                 imgui.multi_color("Damage:", p.hitDT.DmgValue)
                 imgui.multi_color("Self Drive Gain:", p.hitDT.FocusOwn)
@@ -262,8 +257,9 @@ function draw_info_gui(p)
             for i = 0, p.chargeInfo:get_Count() - 1 do
                 local value = p.chargeInfo:get_Values()._dictionary._entries[i].value
                 if value ~= nil then
-                    imgui.multi_color("Move " .. i + 1 .. " Charge Time:", value.charge_frame)
-                    imgui.multi_color("Move " .. i + 1 .. " Charge Keep Time:", value.keep_frame)
+                    num = i + 1
+                    imgui.multi_color("Move " .. num .. " Charge Time:", value.charge_frame)
+                    imgui.multi_color("Move " .. num .. " Charge Keep Time:", value.keep_frame)
                 end
             end
 
@@ -283,15 +279,20 @@ function render_player_info_window(title, p, cWork)
     imgui.end_window()
 end
 
+re.on_draw_ui(function()
+    if imgui.tree_node("Info Display") then
+        _, p1.display_info = imgui.checkbox("Display P1 Battle Info", p1.display_info)
+        _, p2.display_info = imgui.checkbox("Display P2 Battle Info", p2.display_info)
+        imgui.tree_pop()
+    end
+end)
+
 re.on_frame(function()
-    gBattle = sdk.find_type_definition("gBattle")
-    if gBattle then
-        local sPlayer = gBattle:get_field("Player"):get_data(nil)
-        local cPlayer = sPlayer.mcPlayer
-        local battleTeam = gBattle:get_field("Team"):get_data(nil)
-        local storageData = gBattle:get_field("Command"):get_data(nil).StorageData
-        local sWork = gBattle:get_field("Work"):get_data(nil)
-        local cWork = sWork.Global_work
+    if Battle:Update() then
+        local cPlayer = Battle:Field("Player").mcPlayer
+        local battleTeam = Battle:Field("Team")
+        local storageData = Battle:Field("Command")
+        local cWork = Battle:Field("Work").Global_work
 
         -- if sPlayer.move_ctr > 0 then
         update_player(p1, cPlayer, storageData, battleTeam)

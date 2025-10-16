@@ -37,6 +37,10 @@ function bitand(a, b)
     return result
 end
 
+function flagged(value, flag)
+    return bitand(value, flag) == flag
+end
+
 function abs(num)
     return num < 0 and num * -1 or num
 end
@@ -56,13 +60,24 @@ function read_sfix(sfix_obj)
     return parse_num(sfix_obj)
 end
 
+function vec3(x, y, z)
+    return Vector3f.new(x, y, z or 0)
+end
+
+function draw_rect(posX, posY, sclX, sclY, color, fill_color)
+    draw.outline_rect(posX, posY, sclX, sclY, color)
+    if fill_color then
+        draw.filled_rect(posX, posY, sclX, sclY, fill_color)
+    end
+end
+
 function find_gBattle()
     return sdk.find_type_definition("gBattle")
 end
 
-function get_data_field(obj, name)
+function get_field_data(obj, name, data)
     if obj ~= nil then
-        return obj.get_field(name):get_data(nil)
+        return obj:get_field(name):get_data(data)
     end
 end
 
@@ -76,5 +91,5 @@ function Battle:Update()
 end
 
 function Battle:Field(name)
-    return get_data_field(Battle.Source, name)
+    return get_field_data(Battle.Source, name, nil)
 end
