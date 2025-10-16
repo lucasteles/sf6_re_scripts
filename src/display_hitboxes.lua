@@ -10,6 +10,7 @@ local function create_display_config(name)
         pushboxes = true,
         throwboxes = true,
         throwhurtboxes = true,
+        armorboxes = true,
         proximityboxes = true,
         uniqueboxes = true,
         properties = true,
@@ -25,15 +26,15 @@ local Colors = {
     White = 0xFFFFFFFF,
     HitBox = {
         Border = 0xFF0040C0,
-        Fill = 0x4D0040C0
+        Fill = 0x6D0040C0
     },
     ThrowBox = {
         Border = 0xFFD080FF,
-        Fill = 0x4DD080FF
+        Fill = 0x6DD080FF
     },
     ClashBox = {
         Border = 0xFF3891E6,
-        Fill = 0x403891E6
+        Fill = 0x5D3891E6
     },
     ProximityBox = {
         Border = 0xFF5b5b5b,
@@ -41,23 +42,23 @@ local Colors = {
     },
     PushBox = {
         Border = 0xFF00FFFF,
-        Fill = 0x4000FFFF
+        Fill = 0x1000FFFF
     },
     HurtBox = {
-        Border = 0xFFFF0080,
-        Fill = 0x40FF0080
+        Border = 0xFF00FF00,
+        Fill = 0x2000FF00
     },
     ThrowHurtBox = {
         Border = 0xFFFF0000,
-        Fill = 0x4DFF0000
+        Fill = 0x20FF0000
     },
-    OtherHurtBox = {
-        Border = 0xFF00FF26,
-        Fill = 0x4000FF26
+    ArmorBox = {
+        Border = 0xFFFF0080,
+        Fill = 0x40FF0040
     },
     UniqueBox = {
-        Border = 0xFFEEFF26,
-        Fill = 0x4DEEFF26
+        Border = 0xFFEEFF00,
+        Fill = 0x6DEEFF00
     }
 }
 
@@ -88,6 +89,30 @@ local Invuln = {
     CrossUp = 64, -- Cross-Up Attack Intangibility
     Reverse = 128 -- Reverse Hit Intangibility
 }
+
+local function read_screen_rect(rect)
+    local posX, posY, sclX, sclY = read_fixed_rect(rect)
+
+    posX = posX - sclX
+    posY = posY - sclY
+
+    local screenTL = draw.world_to_screen(vec3(posX - sclX, posY + sclY))
+    local screenTR = draw.world_to_screen(vec3(posX + sclX, posY + sclY))
+    local screenBL = draw.world_to_screen(vec3(posX - sclX, posY - sclY))
+    local screenBR = draw.world_to_screen(vec3(posX + sclX, posY - sclY))
+
+    local finalPosX = (screenTL.x + screenTR.x) / 2
+    local finalPosY = (screenBL.y + screenTL.y) / 2
+    local finalSclX = (screenTR.x - screenTL.x)
+    local finalSclY = (screenTL.y - screenBL.y)
+
+    return finalPosX, finalPosY, finalSclX, finalSclY
+end
+
+local function read_screen_vec2(value)
+    local x, y = read_fixed_vec2(value)
+    return draw.world_to_screen(vec3(x, y))
+end
 
 function draw.box(posX, posY, sclX, sclY, colors)
     draw_rect(posX, posY, sclX, sclY, colors.Border, colors.Fill)
@@ -184,84 +209,77 @@ function draw_game_boxes(display, obj, actParam)
     local col = actParam.Collision
     for j, rect in reversePairs(col.Infos._items) do
         if rect ~= nil then
-            local posX = fixed(rect.OffsetX.v)
-            local posY = fixed(rect.OffsetY.v)
-            -- TODO remove mult
-            local sclX = fixed(rect.SizeX.v) * 2
-            local sclY = fixed(rect.SizeY.v) * 2
+            local posX, posY, sclX, sclY = read_screen_rect(rect)
+            if not posX or not posY or not sclX or not sclY then
+                return
+            end
 
-            posX = posX - sclX / 2
-            posY = posY - sclY / 2
-
-            local screenTL = draw.world_to_screen(vec3(posX - sclX / 2, posY + sclY / 2))
-            local screenTR = draw.world_to_screen(vec3(posX + sclX / 2, posY + sclY / 2))
-            local screenBL = draw.world_to_screen(vec3(posX - sclX / 2, posY - sclY / 2))
-            local screenBR = draw.world_to_screen(vec3(posX + sclX / 2, posY - sclY / 2))
-
-            if screenTL and screenTR and screenBL and screenBR then
-                local finalPosX = (screenTL.x + screenTR.x) / 2
-                local finalPosY = (screenBL.y + screenTL.y) / 2
-                local finalSclX = (screenTR.x - screenTL.x)
-                local finalSclY = (screenTL.y - screenBL.y)
-
-                -- If the rectangle has a HitPos field, it falls under attack boxes
-                if rect:get_field("HitPos") ~= nil then
-                    -- TypeFlag > 0 indicates a regular hitbox
-                    if rect.TypeFlag > 0 and display.hitboxes then
-                        draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.HitBox)
-                        if display.properties then
-                            draw.hitbox_properties(rect, finalPosX, (finalPosY + finalSclY))
-                        end
-                        -- Throws almost* universally have a TypeFlag of 0 and a PoseBit > 0
-                        -- Except for JP's command grab projectile which has neither and must be caught with CondFlag of 0x2C0
-                    elseif ((rect.TypeFlag == 0 and rect.PoseBit > 0) or rect.CondFlag == 0x2C0) and display.throwboxes then
-                        draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.ThrowBox)
-                        if display.properties then
-                            draw.hitbox_properties(rect, finalPosX, (finalPosY + finalSclY))
-                        end
-                        -- Projectile Clash boxes have a GuardBit of 0 (while most other boxes have either 7 or some random, non-zero, positive integer)
-                    elseif rect.GuardBit == 0 and display.clashbox then
-                        draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.ClashBox)
-
-                        -- Any remaining boxes are drawn as proximity boxes
-                    elseif display.proximityboxes then
-                        draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.ProximityBox)
+            if isAttackBox(rect) then
+                if isHitBox(rect) then
+                    if display.hitboxes then
+                        draw.box(posX, posY, sclX, sclY, Colors.HitBox)
                     end
-                    -- If the box contains the Attr field, then it is a pushbox
-                elseif rect:get_field("Attr") ~= nil then
-                    if display.pushboxes then
-                        draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.PushBox)
-                    end
-                    -- If the rectangle has a HitNo field, the box falls under hurt boxes
-                elseif rect:get_field("HitNo") ~= nil then
-                    -- TypeFlag > 0 indicates a hurt box
-                    if rect.TypeFlag > 0 and display.hurtboxes then
-                        if rect.Type == HurtBoxType.Armor or rect.Type == HurtBoxType.Parry then
-                            draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.HurtBox)
-                        else -- All other hurtboxes
-                            draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.OtherHurtBox)
-                        end
-                        -- otherwise is a throw hurt box
-                    elseif display.throwhurtboxes then
-                        draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.ThrowHurtBox)
-                    end
-
-                    -- Display hurtbox properties
                     if display.properties then
-                        draw.hurtbox_properties(rect, finalPosX, (finalPosY + finalSclY))
+                        draw.hitbox_properties(rect, posX, (posY + sclY))
                     end
+                elseif isThrowBox(rect) then
+                    if display.throwboxes then
+                        draw.box(posX, posY, sclX, sclY, Colors.ThrowBox)
+                    end
+                    if display.properties then
+                        draw.hitbox_properties(rect, posX, (posY + sclY))
+                    end
+                    -- Projectile Clash boxes have a GuardBit of 0 (while most other boxes have either 7 or some random, non-zero, positive integer)
+                elseif rect.GuardBit == 0 then
+                    if display.clashbox then
+                        draw.box(posX, posY, sclX, sclY, Colors.ClashBox)
+                    end
+                    -- Any remaining boxes are drawn as proximity boxes
+                elseif display.proximityboxes then
+                    draw.box(posX, posY, sclX, sclY, Colors.ProximityBox)
+                end
+            elseif isPushBox(rect) then
+                if display.pushboxes then
+                    draw.box(posX, posY, sclX, sclY, Colors.PushBox)
+                end
+                -- If the rectangle has a HitNo field, the box falls under hurt boxes
+            elseif isHurtBox(rect) then
+                local displayed = false
+                -- TypeFlag > 0 indicates a hurt box
+                if rect.TypeFlag > 0 then
+                    if rect.Type == HurtBoxType.Armor or rect.Type == HurtBoxType.Parry then
+                        -- Armorboxes
+                        if display.armorboxes then
+                            draw.box(posX, posY, sclX, sclY, Colors.ArmorBox)
+                            displayed = true
+                        end
+                    else -- Hurtboxes
+                        if display.hurtboxes then
+                            draw.box(posX, posY, sclX, sclY, Colors.HurtBox)
+                            displayed = true
+                        end
+                    end
+                    -- otherwise is a throw hurt box
+                elseif display.throwhurtboxes then
+                    draw.box(posX, posY, sclX, sclY, Colors.ThrowHurtBox)
+                    displayed = true
+                end
 
-                    -- UniqueBoxes have a special field called KeyData
-                elseif rect:get_field("KeyData") ~= nil and display.uniqueboxes then
-                    draw.box(finalPosX, finalPosY, finalSclX, finalSclY, Colors.UniqueBox)
+                -- Display hurtbox properties
+                if displayed and display.properties then
+                    draw.hurtbox_properties(rect, posX, (posY + sclY))
+                end
+            elseif isUniqueBox(rect) then
+                if display.uniqueboxes then
+                    draw.box(posX, posY, sclX, sclY, Colors.UniqueBox)
                 end
             end
         end
     end
 
-    local objPos = draw.world_to_screen(vec3(fixed(obj.pos.x.v), fixed(obj.pos.y.v)))
-    if objPos and display.position then
-        draw.filled_circle(objPos.x, objPos.y, 10, Colors.White, 10);
+    local pos = read_screen_vec2(obj.pos)
+    if pos and display.position then
+        draw.filled_circle(pos.x, pos.y, 10, Colors.White, 10);
     end
 end
 
@@ -273,6 +291,7 @@ function player_gui(display)
         _, display.pushboxes = imgui.checkbox("Display Pushboxes", display.pushboxes)
         _, display.throwboxes = imgui.checkbox("Display Throw Boxes", display.throwboxes)
         _, display.throwhurtboxes = imgui.checkbox("Display Throw Hurtboxes", display.throwhurtboxes)
+        _, display.armorboxes = imgui.checkbox("Display Armor Boxes", display.armorboxes)
         _, display.proximityboxes = imgui.checkbox("Display Proximity Boxes", display.proximityboxes)
         _, display.clashbox = imgui.checkbox("Display Projectile Clash Boxes", display.clashbox)
         _, display.uniqueboxes = imgui.checkbox("Display Unique Boxes", display.uniqueboxes)

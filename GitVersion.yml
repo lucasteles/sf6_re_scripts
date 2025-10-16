@@ -1,6 +1,6 @@
 workflow: GitFlow/v1
 mode: ContinuousDeployment
-next-version: 0.0.1
+next-version: 0.0.2
 major-version-bump-message: "^(breaking|major):"
 minor-version-bump-message: "^(feature|minor):"
 patch-version-bump-message: "^(fix|patch):"

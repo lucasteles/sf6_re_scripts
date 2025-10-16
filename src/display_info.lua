@@ -15,7 +15,7 @@ local p1 = create_player_config(0, 1)
 local p2 = create_player_config(1, 0)
 
 local text_color = 0xFFAAFFFF
-local FacingRightFlag = 128
+
 local Stance = {
     Standing = 0,
     Crouching = 1
@@ -28,62 +28,53 @@ function imgui.multi_color(color_text, white_text)
     imgui.text(white_text)
 end
 
-local get_hitbox_range = function(p)
-    local player = p.cPlayer
+local update_hitbox_range = function(p, player)
     local actParam = player.mpActParam
+    if actParam == nil then
+        return
+    end
+
+    local col = actParam.Collision
     local facingRight = player.rl_dir
-    local maxHitboxEdgeX = nil
-    if actParam ~= nil then
-        local col = actParam.Collision
-        for j, rect in reversePairs(col.Infos._items) do
-            if rect ~= nil then
-                local posX = fixed(rect.OffsetX.v)
-                local posY = fixed(rect.OffsetY.v)
-                local sclX = fixed(rect.SizeX.v)
-                local sclY = fixed(rect.SizeY.v)
-                if rect:get_field("HitPos") ~= nil then
-                    local hitbox_X
-                    if rect.TypeFlag > 0 or (rect.TypeFlag == 0 and rect.PoseBit > 0) then
+    local dir = facingRight and 1 or -1
+    local maxLeft = nil
+    for _, rect in reversePairs(col.Infos._items) do
+        if rect ~= nil then
+            local posX, posY, sclX, sclY = read_fixed_rect(rect)
+            if isAttackBox(rect) then
+                local left = 0
+                if isHitBox(rect) or isThrowBox(rect) then
+                    left = posX + sclX * dir
+                    if maxLeft == nil then
+                        maxLeft = left
+                    else
                         if facingRight then
-                            hitbox_X = posX + sclX / 2
-                            -- log.debug(hitbox_X)
+                            if left > maxLeft then
+                                maxLeft = left
+                            end
                         else
-                            hitbox_X = posX - sclX / 2
-                        end
-                        if maxHitboxEdgeX == nil then
-                            maxHitboxEdgeX = hitbox_X
-                        end
-                        if maxHitboxEdgeX ~= nil then
-                            if facingRight then
-                                if hitbox_X > maxHitboxEdgeX then
-                                    maxHitboxEdgeX = hitbox_X
-                                end
-                            else
-                                if hitbox_X < maxHitboxEdgeX then
-                                    maxHitboxEdgeX = hitbox_X
-                                end
+                            if left < maxLeft then
+                                maxLeft = left
                             end
                         end
                     end
                 end
             end
         end
-        if maxHitboxEdgeX ~= nil then
-            local playerPosX = fixed(player.pos.x.v)
-            -- Replace start_pos because it can fail to track the actual starting location of an action (e.g., DJ 2MK)
-            -- local playerStartPosX = fixed(player.start_pos.x.v)
-            local playerStartPosX = fixed(player.act_root.x.v)
-            p.absolute_range = abs(maxHitboxEdgeX - playerStartPosX)
-            p.relative_range = abs(maxHitboxEdgeX - playerPosX)
-        end
+    end
+    if maxLeft ~= nil then
+        local playerPosX = fixed(player.pos.x.v)
+        -- Replace start_pos because it can fail to track the actual starting location of an action (e.g., DJ 2MK)
+        -- local playerStartPosX = fixed(player.start_pos.x.v)
+        local playerStartPosX = fixed(player.act_root.x.v)
+        p.absolute_range = abs(maxLeft - playerStartPosX)
+        p.relative_range = abs(maxLeft - playerPosX)
     end
 end
 
-function update_player(p, cPlayer, storageData, battleTeam)
-    local cTeam = battleTeam.mcTeam
+function update_player(p, cPlayer, storageData, cTeam)
     local chargeInfo = storageData.UserEngines[p.pl_no].m_charge_infos
     local player = cPlayer[p.pl_no]
-    p.cPlayer = player
 
     -- ActEngine
     -- Player ActID, Current Frame, Final Frame, IASA Frame
@@ -113,7 +104,7 @@ function update_player(p, cPlayer, storageData, battleTeam)
     p.HP_cap = player.heal_new
     p.current_HP = player.vital_new
     p.HP_cooldown = player.healing_wait
-    p.dir = flagged(player.BitValue, FacingRightFlag)
+    p.dir = player.rl_dir
     p.curr_hitstop = player.hit_stop
     p.max_hitstop = player.hit_stop_org
     p.curr_hitstun = player.damage_time
@@ -149,8 +140,7 @@ function update_player(p, cPlayer, storageData, battleTeam)
         p.max_blockstun = 0
     end
 
-
-    get_hitbox_range(p)
+    update_hitbox_range(p, player)
 end
 
 function draw_projectile_gui(cWork, pl_no)
@@ -290,13 +280,13 @@ end)
 re.on_frame(function()
     if Battle:Update() then
         local cPlayer = Battle:Field("Player").mcPlayer
-        local battleTeam = Battle:Field("Team")
-        local storageData = Battle:Field("Command")
         local cWork = Battle:Field("Work").Global_work
+        local cTeam = Battle:Field("Team").mcTeam
+        local storageData = Battle:Field("Command").StorageData
 
         -- if sPlayer.move_ctr > 0 then
-        update_player(p1, cPlayer, storageData, battleTeam)
-        update_player(p2, cPlayer, storageData, battleTeam)
+        update_player(p1, cPlayer, storageData, cTeam)
+        update_player(p2, cPlayer, storageData, cTeam)
 
         render_player_info_window("Player 1", p1, cWork)
         render_player_info_window("Player 2", p2, cWork)

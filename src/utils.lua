@@ -64,6 +64,18 @@ function vec3(x, y, z)
     return Vector3f.new(x, y, z or 0)
 end
 
+function read_fixed_rect(rect)
+    local posX = fixed(rect.OffsetX.v)
+    local posY = fixed(rect.OffsetY.v)
+    local sclX = fixed(rect.SizeX.v)
+    local sclY = fixed(rect.SizeY.v)
+    return posX, posY, sclX, sclY
+end
+
+function read_fixed_vec2(value)
+    return fixed(value.x.v), fixed(value.y.v)
+end
+
 function draw_rect(posX, posY, sclX, sclY, color, fill_color)
     draw.outline_rect(posX, posY, sclX, sclY, color)
     if fill_color then
@@ -92,4 +104,35 @@ end
 
 function Battle:Field(name)
     return get_field_data(Battle.Source, name, nil)
+end
+
+function isAttackBox(rect)
+    -- If the rectangle has a HitPos field, it falls under attack boxes
+    return rect:get_field("HitPos") ~= nil
+end
+
+function isThrowBox(rect)
+    -- Throws almost* universally have a TypeFlag of 0 and a PoseBit > 0
+    -- Except for JP's command grab projectile which has neither and must be caught with CondFlag of 0x2C0
+    return (rect.TypeFlag == 0 and rect.PoseBit > 0) or rect.CondFlag == 0x2C0
+end
+
+function isHitBox(rect)
+    -- TypeFlag > 0 indicates a regular hitbox
+    return rect.TypeFlag > 0
+end
+
+function isHurtBox(rect)
+    -- If the rectangle has a HitNo field, the box falls under hurt boxes
+    return rect:get_field("HitNo") ~= nil
+end
+
+function isPushBox(rect)
+    -- If the box contains the Attr field, then it is a pushbox
+    return rect:get_field("Attr") ~= nil
+end
+
+function isUniqueBox(rect)
+    -- UniqueBoxes have a special field called KeyData
+    return rect:get_field("KeyData") ~= nil
 end
