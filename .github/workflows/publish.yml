@@ -1,58 +1,57 @@
 ﻿name: Publish
 on:
-    workflow_dispatch:
-    push:
-        branches: [master]
+  workflow_dispatch:
+  push:
+    branches: [master]
 
 jobs:
-    build:
-        name: Build
-        runs-on: ubuntu-latest
-        outputs:
-            Version: ${{ steps.gitversion.outputs.SemVer }}
-            IsNewVersion: ${{ steps.gitversion.outputs.CommitsSinceVersionSource > 0 }} # Check if there has been a commit/version change
-            PreReleaseTag: ${{ steps.gitversion.outputs.NuGetPreReleaseTagV2 }}
-        steps:
-            - name: Checkout Branch
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Setup .NET Core
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: "8.0.x"
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
 
-            - name: Install GitVersion
-              uses: gittools/actions/gitversion/setup@v3.1.11
-              with:
-                  versionSpec: 6.0.x
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3.1.11
+        with:
+          versionSpec: 6.0.x
 
-            - name: Determine Version
-              uses: gittools/actions/gitversion/execute@v3.1.11
-              id: gitversion
-              with:
-                  useConfigFile: true
+      - name: Determine Version
+        uses: gittools/actions/gitversion/execute@v3.1.11
+        id: gitversion
+        with:
+          useConfigFile: true
 
-            - name: Display GitVersion
-              run: |
-                  echo "Version: ${{ steps.gitversion.outputs.SemVer }}"
-                  echo "CommitsSinceVersionSource: ${{ steps.gitversion.outputs.CommitsSinceVersionSource }}"
+      - name: Display GitVersion
+        run: |
+          echo "Version: ${{ steps.gitversion.outputs.SemVer }}"
+          echo "CommitsSinceVersionSource: ${{ steps.gitversion.outputs.CommitsSinceVersionSource }}"
 
-            - name: Build
-              shell: pwsh
-              run: ./build.ps1
+      - name: Build
+        shell: pwsh
+        run: ./build.ps1
 
-            - name: Upload Artifacts
-              uses: actions/upload-artifact@v4
-              with:
-                  name: bundle
-                  path: ./bundle
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle
+          path: ./bundle
 
-            - name: Create Release
-              uses: ncipollo/release-action@v1
-              with:
-                  tag: ${{ needs.build.outputs.SemVer }}
-                  name: Release ${{ needs.build.outputs.SemVer }}
-                  artifacts: "./bundle/*.zip"
-                  token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        if: github.ref == 'refs/heads/master' && steps.gitversion.outputs.CommitsSinceVersionSource > 0 # Check if there has been a commit/version change
+        with:
+          tag: ${{ steps.gitversion.outputs.SemVer }}
+          name: Release ${{ steps.gitversion.outputs.SemVer }}
+          artifacts: "./bundle/*.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}

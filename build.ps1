@@ -1,11 +1,11 @@
 
-$bundle_path = ".\bundle"
-$src = ".\src"
-$re_path = "reframework\autorun"
+$bundle_path = "./bundle"
+$src = "./src"
+$re_path = "reframework/autorun"
 $replace_text = "-- {{INJECT_UTILS}} --"
 
 $plugin_files = @("display_hitboxes.lua", "display_info.lua")
-$utils_src = [IO.File]::ReadAllText(".\src\utils.lua")
+$utils_src = [IO.File]::ReadAllText("src/utils.lua")
 
 function Reset-Directory($path) {
     if (Test-Path $path -PathType Leaf) { throw "Path '$path' is not a directory" }

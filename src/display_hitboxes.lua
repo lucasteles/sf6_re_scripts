@@ -24,42 +24,15 @@ local display_p2 = create_display_config("Player 2")
 
 local Colors = {
     White = 0xFFFFFFFF,
-    HitBox = {
-        Border = 0xFF0040C0,
-        Fill = 0x6D0040C0
-    },
-    ThrowBox = {
-        Border = 0xFFD080FF,
-        Fill = 0x6DD080FF
-    },
-    ClashBox = {
-        Border = 0xFF3891E6,
-        Fill = 0x5D3891E6
-    },
-    ProximityBox = {
-        Border = 0xFF5b5b5b,
-        Fill = 0x405b5b5b
-    },
-    PushBox = {
-        Border = 0xFF00FFFF,
-        Fill = 0x1000FFFF
-    },
-    HurtBox = {
-        Border = 0xFF00FF00,
-        Fill = 0x2000FF00
-    },
-    ThrowHurtBox = {
-        Border = 0xFFFF0000,
-        Fill = 0x20FF0000
-    },
-    ArmorBox = {
-        Border = 0xFFFF0080,
-        Fill = 0x40FF0040
-    },
-    UniqueBox = {
-        Border = 0xFFEEFF00,
-        Fill = 0x6DEEFF00
-    }
+    HitBox = 0x6D0040C0,
+    ThrowBox = 0x6DD080FF,
+    ClashBox = 0x5D3891E6,
+    ProximityBox = 0x405b5b5b,
+    PushBox = 0x1000FFFF,
+    HurtBox = 0x2000FF00,
+    ThrowHurtBox = 0x20FF0000,
+    ArmorBox = 0x40FF0040,
+    UniqueBox = 0x6DEEFF00
 }
 
 local CondFlags = {
@@ -101,21 +74,22 @@ local function read_screen_rect(rect)
     local screenBL = draw.world_to_screen(vec3(posX - sclX, posY - sclY))
     local screenBR = draw.world_to_screen(vec3(posX + sclX, posY - sclY))
 
-    local finalPosX = (screenTL.x + screenTR.x) / 2
-    local finalPosY = (screenBL.y + screenTL.y) / 2
-    local finalSclX = (screenTR.x - screenTL.x)
-    local finalSclY = (screenTL.y - screenBL.y)
+    if screenTL and screenTR and screenBL and screenBR then
 
-    return finalPosX, finalPosY, finalSclX, finalSclY
+        local finalPosX = (screenTL.x + screenTR.x) / 2
+        local finalPosY = (screenBL.y + screenTL.y) / 2
+        local finalSclX = (screenTR.x - screenTL.x)
+        local finalSclY = (screenTL.y - screenBL.y)
+
+        return true, finalPosX, finalPosY, finalSclX, finalSclY
+    end
+
+    return false
 end
 
 local function read_screen_vec2(value)
     local x, y = read_fixed_vec2(value)
     return draw.world_to_screen(vec3(x, y))
-end
-
-function draw.box(posX, posY, sclX, sclY, colors)
-    draw_rect(posX, posY, sclX, sclY, colors.Border, colors.Fill)
 end
 
 function draw.hitbox_properties(rect, posX, posY)
@@ -201,6 +175,12 @@ function draw.hurtbox_properties(rect, posX, posY)
     draw.text(fullString, posX, posY, Colors.White)
 end
 
+function draw.box(posX, posY, sclX, sclY, color, border_color)
+    border_color = border_color or (color | 0xFF000000)
+    draw.outline_rect(posX, posY, sclX, sclY, border_color)
+    draw.filled_rect(posX, posY, sclX, sclY, color)
+end
+
 function draw_game_boxes(display, obj, actParam)
     if display.hide_all == true then
         return
@@ -209,8 +189,8 @@ function draw_game_boxes(display, obj, actParam)
     local col = actParam.Collision
     for j, rect in reversePairs(col.Infos._items) do
         if rect ~= nil then
-            local posX, posY, sclX, sclY = read_screen_rect(rect)
-            if not posX or not posY or not sclX or not sclY then
+            local ok, posX, posY, sclX, sclY = read_screen_rect(rect)
+            if not ok then
                 return
             end
 

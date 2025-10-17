@@ -76,13 +76,6 @@ function read_fixed_vec2(value)
     return fixed(value.x.v), fixed(value.y.v)
 end
 
-function draw_rect(posX, posY, sclX, sclY, color, fill_color)
-    draw.outline_rect(posX, posY, sclX, sclY, color)
-    if fill_color then
-        draw.filled_rect(posX, posY, sclX, sclY, fill_color)
-    end
-end
-
 function find_gBattle()
     return sdk.find_type_definition("gBattle")
 end
