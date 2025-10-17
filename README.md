@@ -4,3 +4,8 @@
 - Display Character Info
 
 ![](/sample.png)
+
+
+---
+
+> Credits to [WistfulHopes/SF6Mods](https://github.com/WistfulHopes/SF6Mods)
